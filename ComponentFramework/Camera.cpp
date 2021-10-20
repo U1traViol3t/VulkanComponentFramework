@@ -8,6 +8,4 @@ Camera::Camera(const float fovy, const float aspectRatio_, const float near_, co
 	std::cout << "Camera is ready!\n";
 }
 
-Camera::~Camera()
-{
-}
+Camera::~Camera() {}

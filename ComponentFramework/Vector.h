@@ -39,6 +39,11 @@ namespace  MATH {
 		void set(float x_, float y_) {
 			x = x_; y = y_;
 		}
+		inline Vec2& operator *= (const float& s) {
+			x *= s;
+			y *= s;
+			return *this;
+		}
 	};
 	
 

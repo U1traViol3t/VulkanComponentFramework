@@ -11,9 +11,7 @@ public:
 	inline Matrix4 setProjectionMatrix(Matrix4 projection_) { projection = projection_; };
 	inline Matrix4 setViewMatrix(Matrix4 view_) { view = view_; };
 private:
-	Matrix4 projection;
-	Matrix4 view;
-	Matrix4 rotation;
-	Matrix4 translate;
+	Matrix4 projection, view, rotation, translate;
+
 };
 #endif
