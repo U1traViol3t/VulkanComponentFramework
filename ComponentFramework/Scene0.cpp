@@ -17,16 +17,20 @@ Scene0::~Scene0() {
 }
 
 bool Scene0::OnCreate() {
-	
+	int width, height;
+	float aspectRatio;
 	switch (renderer->getRendererType()){
 	case RendererType::VULKAN:
-		renderer->Render();
+		SDL_GetWindowSize(dynamic_cast<VulkanRenderer*>(renderer)->GetWindow(), &width, &height);
+		aspectRatio = static_cast<float>(width) / static_cast<float>(height);
+		camera->setPerspective(45.0f, aspectRatio, 0.5f, 5.0f);
+		camera->setPosition(Vec3(0.0f, 1.0f, 0.0f));
+		camera->setRotation(0.0f, Vec3(0.0f, 1.0f, 0.0f));
+		lightPos = Vec4(0.0f, 5.0f, 0.0f, 1.0f);
 		break;
-
 	case RendererType::OPENGL:
 		break;
 	}
-
 	return true;
 }
 

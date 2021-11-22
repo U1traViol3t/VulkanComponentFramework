@@ -159,6 +159,16 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="shaders\frag.spv" />
+    <None Include="shaders\hello.frag" />
+    <None Include="shaders\hello.vert" />
+    <None Include="shaders\multi.frag" />
+    <None Include="shaders\multi.vert" />
+    <None Include="shaders\phong.frag" />
+    <None Include="shaders\phong.vert" />
+    <None Include="shaders\simple.frag" />
+    <None Include="shaders\simple.vert" />
+    <None Include="shaders\texture.frag" />
+    <None Include="shaders\texture.vert" />
     <None Include="shaders\vert.spv" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
