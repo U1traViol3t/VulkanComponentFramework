@@ -5,17 +5,13 @@
 #include "MMath.h"
 #include "Debug.h"
 #include "VulkanRenderer.h"
-
 Scene0::Scene0(Renderer *renderer_): Scene(nullptr), renderer(renderer_), camera(nullptr) {
-	//SDL_GetWindowSize(window, &width, &height);
-	camera = new Camera(45.0f, 1.777777779f, 0.1f, 20.0f);
+	camera = new Camera();
 	Debug::Info("Created Scene0: ", __FILE__, __LINE__);
 }
-
 Scene0::~Scene0() {
 	if (camera) delete camera;
 }
-
 bool Scene0::OnCreate() {
 	int width, height;
 	float aspectRatio;
@@ -23,8 +19,8 @@ bool Scene0::OnCreate() {
 	case RendererType::VULKAN:
 		SDL_GetWindowSize(dynamic_cast<VulkanRenderer*>(renderer)->GetWindow(), &width, &height);
 		aspectRatio = static_cast<float>(width) / static_cast<float>(height);
-		camera->setPerspective(45.0f, aspectRatio, 0.5f, 5.0f);
-		camera->setPosition(Vec3(0.0f, 1.0f, 0.0f));
+		camera->Perspective(45.0f, aspectRatio, 0.5f, 20.0f);
+		camera->setPosition(Vec3(0.0f, 0.0f, -5.0f));
 		camera->setRotation(0.0f, Vec3(0.0f, 1.0f, 0.0f));
 		lightPos = Vec4(0.0f, 5.0f, 0.0f, 1.0f);
 		break;
@@ -33,24 +29,29 @@ bool Scene0::OnCreate() {
 	}
 	return true;
 }
-
 void Scene0::HandleEvents(const SDL_Event &sdlEvent) {
-	if (sdlEvent.type == SDL_WINDOWEVENT_RESIZED) {
-		std::cout << "resized\n";
+	if (sdlEvent.type == SDL_WINDOWEVENT) {
+		switch (sdlEvent.window.event) {
+		case SDL_WINDOWEVENT_SIZE_CHANGED:
+			printf("size changed %d %d\n", sdlEvent.window.data1, sdlEvent.window.data2);
+			float aspectRatio = static_cast<float>(sdlEvent.window.data1) / static_cast<float>(sdlEvent.window.data2);
+			camera->Perspective(45.0f, aspectRatio, 0.5f, 20.0f);
+			break;
 		}
+	}
 }
-
 void Scene0::Update(const float deltaTime) {
 	static float totalTime = 0.0f;
 	totalTime += deltaTime;
 	mariosModelMatrix = MMath::rotate(totalTime * 90.0f, Vec3(0.0f, 1.0f, 0.0f));
 }
-
 void Scene0::Render() const {
 	switch (renderer->getRendererType()) {
 	case RendererType::VULKAN:
-		dynamic_cast<VulkanRenderer*>(renderer)->setUBO(camera->getProjectionMatrix(), camera->getViewMatrix(), mariosModelMatrix);
-		renderer->Render();
+		VulkanRenderer* vRenderer;
+		vRenderer = dynamic_cast<VulkanRenderer*>(renderer);
+		vRenderer->setUBO(camera->getProjectionMatrix(), camera->getViewMatrix(), mariosModelMatrix, lightPos);
+		vRenderer->Render();
 		break;
 
 	case RendererType::OPENGL:
@@ -61,12 +62,9 @@ void Scene0::Render() const {
 		glEnable(GL_CULL_FACE);
 		/// Draw your scene here
 		
-		
 		glUseProgram(0);
 		
 		break;
 	}
 }
-
-
 void Scene0::OnDestroy() {}

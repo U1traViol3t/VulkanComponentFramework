@@ -110,13 +110,12 @@ struct QueueFamilyIndices {
             }
         };
     }
-
- 
-struct UniformBufferObject {
-    Matrix4 model;
-    Matrix4 view;
-    Matrix4 proj;
-};
+    struct UniformBufferObject {
+        Matrix4 model;
+        Matrix4 view;
+        Matrix4 proj;
+        Vec3 lightPos;
+    };
 
 class VulkanRenderer : public Renderer {
 public:
@@ -129,12 +128,12 @@ public:
     VulkanRenderer();
     ~VulkanRenderer();
     SDL_Window* CreateWindow(std::string name_, int width, int height);
-    void setUBO(const Matrix4& projection_, const Matrix4& view_, const Matrix4& model_);
+    void setUBO(const Matrix4& projection_, const Matrix4& view_, const Matrix4& model_, const Vec3& lightPos_);
+    void setULO(const Vec4& lightPos_, const Vec4& ks_);
+    inline SDL_Window* GetWindow() { return window; };
     bool OnCreate();
     void OnDestroy();
     void Render();
-
-    
 
 private:
     const size_t MAX_FRAMES_IN_FLIGHT = 2;
@@ -181,8 +180,8 @@ private:
     std::string TEXTURE_PATH = "./textures/mario_mime.png";
     std::string MODEL_PATH = "./meshes/Mario.obj";
 
-    std::string VERT_PATH = "shaders/example27vert.spv";
-    std::string FRAG_PATH = "shaders/example27frag.spv";
+    std::string VERT_PATH = "shaders/example27.vert";
+    std::string FRAG_PATH = "shaders/example27.frag";
 
     bool hasStencilComponent(VkFormat format);
 

@@ -1,3 +1,2 @@
 [INFO]: Starting the GameSceneManager
-[INFO]: Camera is ready!
 [INFO]: Created Scene0: 

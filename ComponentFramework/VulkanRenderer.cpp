@@ -1222,11 +1222,12 @@ void VulkanRenderer::createSyncObjects() {
     }
 }
 
-void VulkanRenderer::setUBO(const Matrix4& projection_, const Matrix4& view_, const Matrix4& model_) {
+void VulkanRenderer::setUBO(const Matrix4& projection_, const Matrix4& view_, const Matrix4& model_, const Vec3& lightPos_) {
     ubo.proj = projection_;
     ubo.view = view_;
     ubo.model = model_;
     ubo.proj[5] *= -1.0f; //invert y axis, makes textures less wonky
+    ubo.lightPos = lightPos_;
 }
 
 void VulkanRenderer::updateUniformBuffer(uint32_t currentImage) {

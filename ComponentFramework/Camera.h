@@ -1,21 +1,22 @@
 #ifndef CAMERA_H
 #define CAMERA_H
 #include "Matrix.h"
+#include "MMath.h"
 using namespace MATH;
 class Camera {
 public:
-	Camera(const float fovy, const float aspectRatio_, const float near_, const float far_);
+	Camera();
 	~Camera();
-	Matrix4 setPerspective(float fovy_, float aspectRatio_, float near_, float far_);
 	inline Matrix4 getProjectionMatrix() { return projection; }
-	inline Matrix4 getViewMatrix() { return view; }
-	inline Matrix4 setRotation(float angle_, Vec3 rotation_) { rotation = MMath::rotate(angle_, rotation_); };
+	inline Matrix4 getViewMatrix() { return rotation * translate; }
 	inline Matrix4 getRotation() { return rotation; };
-	inline Matrix4 setProjectionMatrix(Matrix4 projection_) { projection = projection_; };
-	inline Matrix4 setViewMatrix(Matrix4 view_) { view = view_; };
-	inline Vec3 setPosition(Vec3 pos_) { pos = pos_; };
+	inline void setRotation(const float angle_, const Vec3& rotation_) { rotation = MMath::rotate(angle_, rotation_); };
+	inline void setProjectionMatrix(Matrix4 projection_) { projection = projection_; };
+	inline void setViewMatrix(Matrix4 view_) { view = view_; };
+	inline void setPosition(const Vec3& pos_) { translate = MMath::translate(pos_); };
+	inline void Perspective(const float fovy_, const float aspectRatio_, const float near_, const float far_) { projection = MMath::perspective(fovy_, aspectRatio_, near_, far_); };
+	inline void lookAt(const Vec3& eye, const Vec3& at, const Vec3& up) { view = MMath::lookAt(eye, at, up); };
 private:
 	Matrix4 projection, view, rotation, translate;
-	Vec3 pos;
 };
 #endif
