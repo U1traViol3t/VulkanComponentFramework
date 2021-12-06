@@ -528,8 +528,6 @@ void VulkanRenderer::createDescriptorSetLayout() {
 void VulkanRenderer::createGraphicsPipeline(const std::string& vertFilePath_, const std::string& fragFilePath_) {
     auto vertShaderCode = readFile(vertFilePath_);
     auto fragShaderCode = readFile(fragFilePath_);
-    //auto vertShaderCode = readFile("shaders/example27vert.spv");
-    //auto fragShaderCode = readFile("shaders/example27frag.spv");
 
     VkShaderModule vertShaderModule = createShaderModule(vertShaderCode);
     VkShaderModule fragShaderModule = createShaderModule(fragShaderCode);
@@ -1222,31 +1220,16 @@ void VulkanRenderer::createSyncObjects() {
     }
 }
 
-void VulkanRenderer::setUBO(const Matrix4& projection_, const Matrix4& view_, const Matrix4& model_, const Vec3& lightPos_) {
+void VulkanRenderer::setUBO(const Matrix4& projection_, const Matrix4& view_, const Matrix4& model_, const Vec4* lightPos_) {
     ubo.proj = projection_;
     ubo.view = view_;
     ubo.model = model_;
     ubo.proj[5] *= -1.0f; //invert y axis, makes textures less wonky
-    ubo.lightPos = lightPos_;
+    ubo.lightPos[0] = lightPos_[0];
+    ubo.lightPos[1] = lightPos_[1];
 }
 
 void VulkanRenderer::updateUniformBuffer(uint32_t currentImage) {
-    //This is quick timer.  
-    //static auto startTime = std::chrono::high_resolution_clock::now();
-    //auto currentTime = std::chrono::high_resolution_clock::now();
-    //float elapsedTime = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
-
-    //UniformBufferObject ubo{};
-    //float aspectRatio = static_cast<float>(swapChainExtent.width) / static_cast<float>(swapChainExtent.height);
-    
-    //Matrix4 oriention = MMath::rotate(0.0f, Vec3(1.0f, 0.0f, 0.0f));
-    //ubo.model = MMath::rotate(elapsedTime * 90.0f, Vec3(0.0f, 1.0f, 0.0f));
-    
-    //ubo.view = MMath::lookAt(Vec3(0.0f, 0.0f, -5.0f), Vec3(0.0f, 0.0f, 0.0f), Vec3(0.0f, 1.0f, 0.0f));
-    //ubo.proj = MMath::perspective(45.0f, aspectRatio, 0.1f, 20.0f);
-    //ubo.proj[1][1] *= -1.0f;
-    //ubo.proj[5] *= -1.0f;
-
     void* data;
     vkMapMemory(device, uniformBuffersMemory[currentImage], 0, sizeof(ubo), 0, &data);
     memcpy(data, &ubo, sizeof(ubo));

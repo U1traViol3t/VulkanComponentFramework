@@ -177,5 +177,17 @@
     <None Include="shaders\example27.vert">
       <Filter>Source Files\Shaders</Filter>
     </None>
+    <None Include="shaders\multiPhong.vert">
+      <Filter>Source Files\Shaders</Filter>
+    </None>
+    <None Include="shaders\multiPhong.frag">
+      <Filter>Source Files\Shaders</Filter>
+    </None>
+    <None Include="shaders\multiPhong.vert.spv">
+      <Filter>Source Files\Shaders</Filter>
+    </None>
+    <None Include="shaders\multiPhong.frag.spv">
+      <Filter>Source Files\Shaders</Filter>
+    </None>
   </ItemGroup>
 </Project>

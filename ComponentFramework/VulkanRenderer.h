@@ -114,7 +114,7 @@ struct QueueFamilyIndices {
         Matrix4 model;
         Matrix4 view;
         Matrix4 proj;
-        Vec3 lightPos;
+        Vec4 lightPos[2];
     };
 
 class VulkanRenderer : public Renderer {
@@ -128,8 +128,7 @@ public:
     VulkanRenderer();
     ~VulkanRenderer();
     SDL_Window* CreateWindow(std::string name_, int width, int height);
-    void setUBO(const Matrix4& projection_, const Matrix4& view_, const Matrix4& model_, const Vec3& lightPos_);
-    void setULO(const Vec4& lightPos_, const Vec4& ks_);
+    void setUBO(const Matrix4& projection_, const Matrix4& view_, const Matrix4& model_, const Vec4* lightPos_);
     inline SDL_Window* GetWindow() { return window; };
     bool OnCreate();
     void OnDestroy();
@@ -180,8 +179,8 @@ private:
     std::string TEXTURE_PATH = "./textures/mario_mime.png";
     std::string MODEL_PATH = "./meshes/Mario.obj";
 
-    std::string VERT_PATH = "shaders/example27.vert";
-    std::string FRAG_PATH = "shaders/example27.frag";
+    std::string VERT_PATH = "shaders/multiPhong.vert.spv";
+    std::string FRAG_PATH = "shaders/multiPhong.frag.spv";
 
     bool hasStencilComponent(VkFormat format);
 

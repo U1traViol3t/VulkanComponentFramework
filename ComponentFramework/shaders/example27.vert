@@ -5,7 +5,7 @@ layout(binding = 0) uniform UniformBufferObject {
     mat4 model;
     mat4 view;
     mat4 proj;
-    vec3 lightPos;
+    vec4 lightPos[2];
 } ubo;
 
 layout(location = 0) in vec3 vVertex;
@@ -25,7 +25,7 @@ void main() {
     vec3 vertPos = vec3(ubo.view * ubo.model * vec4(vVertex, 1.0)); /// This is the position of the vertex from the origin
     vec3 vertDir = normalize(vertPos);
     eyeDir = -vertDir;
-    lightDir = normalize(ubo.lightPos.xyz - vertPos); /// Create the light direction. I do the math within class 
+    lightDir = normalize(ubo.lightPos[0].xyz - vertPos); /// Create the light direction. I do the math within class 
 
     gl_Position = ubo.proj * ubo.view * ubo.model * vec4(vVertex, 1.0);
 }

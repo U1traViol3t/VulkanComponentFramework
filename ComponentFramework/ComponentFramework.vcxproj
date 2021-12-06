@@ -165,6 +165,10 @@
     <None Include="shaders\hello.vert" />
     <None Include="shaders\multi.frag" />
     <None Include="shaders\multi.vert" />
+    <None Include="shaders\multiPhong.frag" />
+    <None Include="shaders\multiPhong.frag.spv" />
+    <None Include="shaders\multiPhong.vert" />
+    <None Include="shaders\multiPhong.vert.spv" />
     <None Include="shaders\phong.frag" />
     <None Include="shaders\phong.vert" />
     <None Include="shaders\simple.frag" />

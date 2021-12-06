@@ -15,7 +15,7 @@ private:
 	Renderer* renderer;
 	Camera* camera;
 	Matrix4 mariosModelMatrix;
-	Vec4 lightPos;
+	Vec4 lightPos[2];
 public:
 	explicit Scene0(Renderer* renderer_);
 	virtual ~Scene0();

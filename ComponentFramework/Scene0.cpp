@@ -22,7 +22,8 @@ bool Scene0::OnCreate() {
 		camera->Perspective(45.0f, aspectRatio, 0.5f, 20.0f);
 		camera->setPosition(Vec3(0.0f, 0.0f, -5.0f));
 		camera->setRotation(0.0f, Vec3(0.0f, 1.0f, 0.0f));
-		lightPos = Vec4(0.0f, 5.0f, 0.0f, 1.0f);
+		lightPos[0] = Vec4(-5.0, 0.0, -4.0, 1.0f);
+		lightPos[1] = Vec4(5.0, 0.0, -4.0, 1.0f);
 		break;
 	case RendererType::OPENGL:
 		break;
