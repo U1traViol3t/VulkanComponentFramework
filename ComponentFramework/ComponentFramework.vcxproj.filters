@@ -189,5 +189,29 @@
     <None Include="shaders\multiPhong.frag.spv">
       <Filter>Source Files\Shaders</Filter>
     </None>
+    <None Include="shaders\simpleVert.spv">
+      <Filter>Source Files\Shaders</Filter>
+    </None>
+    <None Include="shaders\simpleFrag.spv">
+      <Filter>Source Files\Shaders</Filter>
+    </None>
+    <None Include="shaders\phong.vert.spv">
+      <Filter>Source Files\Shaders</Filter>
+    </None>
+    <None Include="shaders\phong.frag.spv">
+      <Filter>Source Files\Shaders</Filter>
+    </None>
+    <None Include="shaders\simplePhong.vert">
+      <Filter>Source Files\Shaders</Filter>
+    </None>
+    <None Include="shaders\simplePhong.frag">
+      <Filter>Source Files\Shaders</Filter>
+    </None>
+    <None Include="shaders\simplePhong.frag.spv">
+      <Filter>Source Files\Shaders</Filter>
+    </None>
+    <None Include="shaders\simplePhong.vert.spv">
+      <Filter>Source Files\Shaders</Filter>
+    </None>
   </ItemGroup>
 </Project>

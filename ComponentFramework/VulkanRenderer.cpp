@@ -5,7 +5,7 @@
 
 
 VulkanRenderer::VulkanRenderer(): /// Initialize all the variables
-    window(nullptr), instance(nullptr), debugMessenger(0), surface(0),commandPool(0),device(nullptr),graphicsPipeline(0),
+    window(nullptr), instance(nullptr), debugMessenger(0), surface(0),commandPool(0),device(nullptr),
     windowWidth(0), windowHeight(0),presentQueue(0),graphicsQueue(nullptr),pipelineLayout(0), renderPass(0), swapChain(0),
     swapChainExtent{},swapChainImageFormat{} {   
      
@@ -47,7 +47,8 @@ void VulkanRenderer::Render() {
         throw std::runtime_error("failed to acquire swap chain image!");
     }
 
-    updateUniformBuffer(imageIndex);
+    updateCameraUniformBuffer(imageIndex);
+    updateModelUniformBuffer(imageIndex);
 
     if (imagesInFlight[imageIndex] != VK_NULL_HANDLE) {
         vkWaitForFences(device, 1, &imagesInFlight[imageIndex], VK_TRUE, UINT64_MAX);
@@ -132,17 +133,19 @@ void VulkanRenderer::initVulkan() {
     createImageViews();
     createRenderPass();
     createDescriptorSetLayout();
-    createGraphicsPipeline(VERT_PATH, FRAG_PATH);
+    createGraphicsPipeline("OnePhongLights", SIMPLE_VERT_PATH, SIMPLE_FRAG_PATH);
+    createGraphicsPipeline("MultiPhongLights", MULTI_VERT_PATH, MULTI_FRAG_PATH);
     createCommandPool();
     createDepthResources();
     createFramebuffers();
     createTextureImage();
     createTextureImageView();
     createTextureSampler();
-    loadModel(MODEL_PATH.c_str());
+    loadModel("Skull", F_MODEL_PATH);
+    loadModel("Sphere", S_MODEL_PATH);
     createVertexBuffer();
     createIndexBuffer();
-    createUniformBuffers();
+    createCameraUniformBuffers();
     createDescriptorPool();
     createDescriptorSets();
     createCommandBuffers();
@@ -162,7 +165,12 @@ void VulkanRenderer::cleanupSwapChain() {
 
     vkFreeCommandBuffers(device, commandPool, static_cast<uint32_t>(commandBuffers.size()), commandBuffers.data());
 
-    vkDestroyPipeline(device, graphicsPipeline, nullptr);
+    for (std::pair<const char*, VkPipeline> element : pipelinesMap) {
+        vkDestroyPipeline(device, element.second, nullptr);
+        std::cout << "vkDestroyPipeline: " << element.first << std::endl;
+    }
+    pipelinesMap.clear();
+
     vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
     vkDestroyRenderPass(device, renderPass, nullptr);
 
@@ -173,8 +181,10 @@ void VulkanRenderer::cleanupSwapChain() {
     vkDestroySwapchainKHR(device, swapChain, nullptr);
 
     for (size_t i = 0; i < swapChainImages.size(); i++) {
-        vkDestroyBuffer(device, uniformBuffers[i], nullptr);
-        vkFreeMemory(device, uniformBuffersMemory[i], nullptr);
+        vkDestroyBuffer(device, cameraUniformBuffers[i], nullptr);
+        vkFreeMemory(device, cameraUniformBuffersMemory[i], nullptr);
+        vkDestroyBuffer(device, modelUniformBuffers[i], nullptr);
+        vkFreeMemory(device, modelUniformBuffersMemory[i], nullptr);
     }
 
     vkDestroyDescriptorPool(device, descriptorPool, nullptr);
@@ -191,11 +201,17 @@ void VulkanRenderer::cleanup() {
 
     vkDestroyDescriptorSetLayout(device, descriptorSetLayout, nullptr);
 
-    vkDestroyBuffer(device, indexBuffer, nullptr);
-    vkFreeMemory(device, indexBufferMemory, nullptr);
+    for (const std::pair<const char*, ModelVertexData> element : modelsMap) {
+        vkDestroyBuffer(device, element.second.indexBufferObject, nullptr);
+        vkFreeMemory(device, element.second.indexBufferMemory, nullptr);
 
-    vkDestroyBuffer(device, vertexBuffer, nullptr);
-    vkFreeMemory(device, vertexBufferMemory, nullptr);
+        vkDestroyBuffer(device, element.second.vertexBufferObject, nullptr);
+        vkFreeMemory(device, element.second.vertexBufferMemory, nullptr);
+
+        std::cout << "VkDestroyBuffer vertex data: " << element.first << std::endl;
+
+    }
+    
 
     for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
         vkDestroySemaphore(device, renderFinishedSemaphores[i], nullptr);
@@ -238,10 +254,10 @@ void VulkanRenderer::recreateSwapChain() {
     createSwapChain();
     createImageViews();
     createRenderPass();
-    createGraphicsPipeline(VERT_PATH, FRAG_PATH);
+    createGraphicsPipeline("MultiPhongLights", MULTI_VERT_PATH, MULTI_FRAG_PATH);
     createDepthResources();
     createFramebuffers();
-    createUniformBuffers();
+    createCameraUniformBuffers();
     createDescriptorPool();
     createDescriptorSets();
     createCommandBuffers();
@@ -525,7 +541,7 @@ void VulkanRenderer::createDescriptorSetLayout() {
     }
 }
 
-void VulkanRenderer::createGraphicsPipeline(const std::string& vertFilePath_, const std::string& fragFilePath_) {
+void VulkanRenderer::createGraphicsPipeline(const char* idName_, const std::string& vertFilePath_, const std::string& fragFilePath_) {
     auto vertShaderCode = readFile(vertFilePath_);
     auto fragShaderCode = readFile(fragFilePath_);
 
@@ -644,12 +660,17 @@ void VulkanRenderer::createGraphicsPipeline(const std::string& vertFilePath_, co
     pipelineInfo.subpass = 0;
     pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
 
+    VkPipeline graphicsPipeline;
+
+
     if (vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &graphicsPipeline) != VK_SUCCESS) {
         throw std::runtime_error("failed to create graphics pipeline!");
     }
 
     vkDestroyShaderModule(device, fragShaderModule, nullptr);
     vkDestroyShaderModule(device, vertShaderModule, nullptr);
+
+    pipelinesMap[idName_] = graphicsPipeline;
 }
 
 void VulkanRenderer::createFramebuffers() {
@@ -724,7 +745,7 @@ bool VulkanRenderer::hasStencilComponent(VkFormat format) {
 }
 
 void VulkanRenderer::createTextureImage() {
-    SDL_Surface* image = IMG_Load(TEXTURE_PATH.c_str());
+    SDL_Surface* image = IMG_Load(TEXTURE_PATH);
     ///image->format
     VkDeviceSize imageSize = image->w * image->h * 4;
 
@@ -904,7 +925,7 @@ void VulkanRenderer::copyBufferToImage(VkBuffer buffer, VkImage image, uint32_t 
     endSingleTimeCommands(commandBuffer);
 }
 
-void VulkanRenderer::loadModel(const char* filename) {
+void VulkanRenderer::loadModel(const char* idName_, const char* filename) {
     tinyobj::attrib_t attrib;
     std::vector<tinyobj::shape_t> shapes;
     std::vector<tinyobj::material_t> materials;
@@ -925,13 +946,15 @@ void VulkanRenderer::loadModel(const char* filename) {
                 attrib.vertices[3 * index.vertex_index + 1],
                 attrib.vertices[3 * index.vertex_index + 2]
             };
-
+            vertex.normal = {
+                attrib.normals[3 * index.normal_index + 0],
+                attrib.normals[3 * index.normal_index + 1],
+                attrib.normals[3 * index.normal_index + 2],
+            };
             vertex.texCoord = {
                 attrib.texcoords[2 * index.texcoord_index + 0],
                 1.0f - attrib.texcoords[2 * index.texcoord_index + 1]
             };
-
-            vertex.color = { 1.0f, 1.0f, 1.0f };
 
             if (uniqueVertices.count(vertex) == 0) {
                 uniqueVertices[vertex] = static_cast<uint32_t>(vertices.size());
@@ -941,57 +964,73 @@ void VulkanRenderer::loadModel(const char* filename) {
             indices.push_back(uniqueVertices[vertex]);
         }
     }
-}
 
-void VulkanRenderer::createVertexBuffer() {
-    VkDeviceSize bufferSize = sizeof(vertices[0]) * vertices.size();
-
-    VkBuffer stagingBuffer;
-    VkDeviceMemory stagingBufferMemory;
-                                                                                                                       // these are being pulled in by reference, be constatant
-    createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer, stagingBufferMemory);
-
+    //vertex data
+    VkDeviceSize bufferSize;
+    bufferSize = sizeof(uint32_t) * vertices.size();
     void* data;
+    VkBuffer stagingBufferObject;
+    VkDeviceMemory stagingBufferMemory;
+
+    ModelVertexData modelVertexData;
+    // these are being pulled in by reference, be constatant
+    createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBufferObject, stagingBufferMemory);
+
     vkMapMemory(device, stagingBufferMemory, 0, bufferSize, 0, &data);
     memcpy(data, vertices.data(), (size_t)bufferSize);
     vkUnmapMemory(device, stagingBufferMemory);
 
-    createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, vertexBuffer, vertexBufferMemory);
+    createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, modelVertexData.vertexBufferObject, modelVertexData.vertexBufferMemory);
 
-    copyBuffer(stagingBuffer, vertexBuffer, bufferSize);
+    copyBuffer(stagingBufferObject, modelVertexData.vertexBufferObject, bufferSize);
 
-    vkDestroyBuffer(device, stagingBuffer, nullptr);
+    vkDestroyBuffer(device, stagingBufferObject, nullptr);
     vkFreeMemory(device, stagingBufferMemory, nullptr);
-}
 
-void VulkanRenderer::createIndexBuffer() {
-    VkDeviceSize bufferSize = sizeof(indices[0]) * indices.size();
 
-    VkBuffer stagingBuffer;
-    VkDeviceMemory stagingBufferMemory;
-    createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer, stagingBufferMemory);
+    //index data
+    bufferSize = sizeof(uint32_t) * indices.size();
+    //modelVertexData.indexBufferMemorySize = indices.size();
+    createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBufferObject, stagingBufferMemory);
 
-    void* data;
     vkMapMemory(device, stagingBufferMemory, 0, bufferSize, 0, &data);
     memcpy(data, indices.data(), (size_t)bufferSize);
     vkUnmapMemory(device, stagingBufferMemory);
 
-    createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, indexBuffer, indexBufferMemory);
+    createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, modelVertexData.indexBufferObject, modelVertexData.indexBufferMemory);
 
-    copyBuffer(stagingBuffer, indexBuffer, bufferSize);
+    copyBuffer(stagingBufferObject, modelVertexData.indexBufferObject, bufferSize);
 
-    vkDestroyBuffer(device, stagingBuffer, nullptr);
+    vkDestroyBuffer(device, stagingBufferObject, nullptr);
     vkFreeMemory(device, stagingBufferMemory, nullptr);
+
+    modelsMap[idName_] = modelVertexData;
 }
 
-void VulkanRenderer::createUniformBuffers() {
-    VkDeviceSize bufferSize = sizeof(UniformBufferObject);
+void VulkanRenderer::createVertexBuffer() {}
 
-    uniformBuffers.resize(swapChainImages.size());
-    uniformBuffersMemory.resize(swapChainImages.size());
+void VulkanRenderer::createIndexBuffer() {}
+
+
+void VulkanRenderer::createCameraUniformBuffers() {
+    VkDeviceSize bufferSize = sizeof(CameraUniformBufferObject);
+
+    cameraUniformBuffers.resize(swapChainImages.size());
+    cameraUniformBuffersMemory.resize(swapChainImages.size());
 
     for (size_t i = 0; i < swapChainImages.size(); i++) {
-        createBuffer(bufferSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, uniformBuffers[i], uniformBuffersMemory[i]);
+        createBuffer(bufferSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, cameraUniformBuffers[i], cameraUniformBuffersMemory[i]);
+    }
+}
+
+void VulkanRenderer::createModelUniformBuffers() {
+    VkDeviceSize bufferSize = sizeof(ModelUniformBufferObject);
+
+    modelUniformBuffers.resize(swapChainImages.size());
+    modelUniformBuffersMemory.resize(swapChainImages.size());
+
+    for (size_t i = 0; i < swapChainImages.size(); i++) {
+        createBuffer(bufferSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, modelUniformBuffers[i], modelUniformBuffersMemory[i]);
     }
 }
 
@@ -1027,17 +1066,22 @@ void VulkanRenderer::createDescriptorSets() {
     }
 
     for (size_t i = 0; i < swapChainImages.size(); i++) {
-        VkDescriptorBufferInfo bufferInfo{};
-        bufferInfo.buffer = uniformBuffers[i];
-        bufferInfo.offset = 0;
-        bufferInfo.range = sizeof(UniformBufferObject);
+        VkDescriptorBufferInfo cameraBufferInfo{};
+        cameraBufferInfo.buffer = cameraUniformBuffers[i];
+        cameraBufferInfo.offset = 0;
+        cameraBufferInfo.range = sizeof(CameraUniformBufferObject);
+
+        VkDescriptorBufferInfo modelBufferInfo{};
+        modelBufferInfo.buffer = modelUniformBuffers[i];
+        modelBufferInfo.offset = 0;
+        modelBufferInfo.range = sizeof(ModelUniformBufferObject);
 
         VkDescriptorImageInfo imageInfo{};
         imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
         imageInfo.imageView = textureImageView;
         imageInfo.sampler = textureSampler;
 
-        std::array<VkWriteDescriptorSet, 2> descriptorWrites{};
+        std::array<VkWriteDescriptorSet, 3> descriptorWrites{};
 
         descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
         descriptorWrites[0].dstSet = descriptorSets[i];
@@ -1045,15 +1089,23 @@ void VulkanRenderer::createDescriptorSets() {
         descriptorWrites[0].dstArrayElement = 0;
         descriptorWrites[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
         descriptorWrites[0].descriptorCount = 1;
-        descriptorWrites[0].pBufferInfo = &bufferInfo;
+        descriptorWrites[0].pBufferInfo = &cameraBufferInfo;
 
         descriptorWrites[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
         descriptorWrites[1].dstSet = descriptorSets[i];
         descriptorWrites[1].dstBinding = 1;
         descriptorWrites[1].dstArrayElement = 0;
-        descriptorWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        descriptorWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
         descriptorWrites[1].descriptorCount = 1;
-        descriptorWrites[1].pImageInfo = &imageInfo;
+        descriptorWrites[1].pBufferInfo = &modelBufferInfo;
+
+        descriptorWrites[2].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        descriptorWrites[2].dstSet = descriptorSets[i];
+        descriptorWrites[2].dstBinding = 2;
+        descriptorWrites[2].dstArrayElement = 0;
+        descriptorWrites[2].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        descriptorWrites[2].descriptorCount = 1;
+        descriptorWrites[2].pImageInfo = &imageInfo;
 
         vkUpdateDescriptorSets(device, static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0, nullptr);
     }
@@ -1178,13 +1230,13 @@ void VulkanRenderer::createCommandBuffers() {
 
         vkCmdBeginRenderPass(commandBuffers[i], &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
 
-        vkCmdBindPipeline(commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
+        vkCmdBindPipeline(commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelinesMap["MultiPhongLights"]);
 
-        VkBuffer vertexBuffers[] = { vertexBuffer };
+        VkBuffer vertexBuffers[] = { modelsMap["Mario"].vertexBufferObject};
         VkDeviceSize offsets[] = { 0 };
         vkCmdBindVertexBuffers(commandBuffers[i], 0, 1, vertexBuffers, offsets);
 
-        vkCmdBindIndexBuffer(commandBuffers[i], indexBuffer, 0, VK_INDEX_TYPE_UINT32);
+        vkCmdBindIndexBuffer(commandBuffers[i], modelsMap["Mario"].indexBufferObject, 0, VK_INDEX_TYPE_UINT32);
 
         vkCmdBindDescriptorSets(commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSets[i], 0, nullptr);
 
@@ -1220,20 +1272,30 @@ void VulkanRenderer::createSyncObjects() {
     }
 }
 
-void VulkanRenderer::setUBO(const Matrix4& projection_, const Matrix4& view_, const Matrix4& model_, const Vec4* lightPos_) {
-    ubo.proj = projection_;
-    ubo.view = view_;
-    ubo.model = model_;
-    ubo.proj[5] *= -1.0f; //invert y axis, makes textures less wonky
-    ubo.lightPos[0] = lightPos_[0];
-    ubo.lightPos[1] = lightPos_[1];
+void VulkanRenderer::setCameraUBO(const Matrix4& projection_, const Matrix4& view_) {
+    cameraUBO.proj = projection_;
+    cameraUBO.view = view_;
+    cameraUBO.proj[5] *= -1.0f; //invert y axis, makes textures less wonky
 }
 
-void VulkanRenderer::updateUniformBuffer(uint32_t currentImage) {
+void VulkanRenderer::setModelUBO(const Matrix4& model_, const Vec4* lightPos_) {
+    modelUBO.model = model_;
+    modelUBO.lightPos[0] = lightPos_[0];
+    modelUBO.lightPos[1] = lightPos_[1];
+}
+
+void VulkanRenderer::updateCameraUniformBuffer(uint32_t currentImage) {
     void* data;
-    vkMapMemory(device, uniformBuffersMemory[currentImage], 0, sizeof(ubo), 0, &data);
-    memcpy(data, &ubo, sizeof(ubo));
-    vkUnmapMemory(device, uniformBuffersMemory[currentImage]);
+    vkMapMemory(device, cameraUniformBuffersMemory[currentImage], 0, sizeof(cameraUBO), 0, &data);
+    memcpy(data, &cameraUBO, sizeof(cameraUBO));
+    vkUnmapMemory(device, cameraUniformBuffersMemory[currentImage]);
+}
+
+void VulkanRenderer::updateModelUniformBuffer(uint32_t currentImage) {
+    void* data;
+    vkMapMemory(device, modelUniformBuffersMemory[currentImage], 0, sizeof(modelUBO), 0, &data);
+    memcpy(data, &modelUBO, sizeof(modelUBO));
+    vkUnmapMemory(device, modelUniformBuffersMemory[currentImage]);
 }
 
 VkShaderModule VulkanRenderer::createShaderModule(const std::vector<char>& code) {

@@ -2,13 +2,12 @@
 #define SCENE0_H
 #include "Scene.h"
 #include "Vector.h"
-#include "Renderer.h"
+#include "VulkanRenderer.h"
 #include "Camera.h"
 using namespace MATH;
 
 /// Forward declarations 
 union SDL_Event;
-
 
 class Scene0 : public Scene {
 private:

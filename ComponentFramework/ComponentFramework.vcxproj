@@ -170,9 +170,17 @@
     <None Include="shaders\multiPhong.vert" />
     <None Include="shaders\multiPhong.vert.spv" />
     <None Include="shaders\phong.frag" />
+    <None Include="shaders\phong.frag.spv" />
     <None Include="shaders\phong.vert" />
+    <None Include="shaders\phong.vert.spv" />
     <None Include="shaders\simple.frag" />
     <None Include="shaders\simple.vert" />
+    <None Include="shaders\simpleFrag.spv" />
+    <None Include="shaders\simplePhong.frag" />
+    <None Include="shaders\simplePhong.frag.spv" />
+    <None Include="shaders\simplePhong.vert" />
+    <None Include="shaders\simplePhong.vert.spv" />
+    <None Include="shaders\simpleVert.spv" />
     <None Include="shaders\texture.frag" />
     <None Include="shaders\texture.vert" />
     <None Include="shaders\vert.spv" />

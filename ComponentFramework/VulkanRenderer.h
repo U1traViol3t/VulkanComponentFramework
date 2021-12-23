@@ -62,6 +62,7 @@ struct QueueFamilyIndices {
     struct Vertex {
         Vec3 pos;
         Vec3 color;
+        Vec3 normal;
         Vec2 texCoord;
 
         static VkVertexInputBindingDescription getBindingDescription() {
@@ -110,11 +111,22 @@ struct QueueFamilyIndices {
             }
         };
     }
-    struct UniformBufferObject {
-        Matrix4 model;
+
+    struct CameraUniformBufferObject {
         Matrix4 view;
         Matrix4 proj;
+    };
+
+    struct ModelUniformBufferObject {
+        Matrix4 model;
         Vec4 lightPos[2];
+    };
+
+    struct ModelVertexData {
+        VkBuffer vertexBufferObject;
+        VkDeviceMemory vertexBufferMemory;
+        VkBuffer indexBufferObject;
+        VkDeviceMemory indexBufferMemory;
     };
 
 class VulkanRenderer : public Renderer {
@@ -128,13 +140,18 @@ public:
     VulkanRenderer();
     ~VulkanRenderer();
     SDL_Window* CreateWindow(std::string name_, int width, int height);
-    void setUBO(const Matrix4& projection_, const Matrix4& view_, const Matrix4& model_, const Vec4* lightPos_);
+    void setCameraUBO(const Matrix4& projection_, const Matrix4& view_);
+    void setModelUBO(const Matrix4& model_, const Vec4* lightPos_);
     inline SDL_Window* GetWindow() { return window; };
     bool OnCreate();
     void OnDestroy();
     void Render();
 
 private:
+    std::unordered_map <const char*, VkPipeline> pipelinesMap;
+    //VkPipeline graphicsPipeline;
+    std::unordered_map <const char*, ModelVertexData> modelsMap;
+
     const size_t MAX_FRAMES_IN_FLIGHT = 2;
     std::vector<Vertex> vertices;
     std::vector<uint32_t> indices;
@@ -150,7 +167,6 @@ private:
     VkRenderPass renderPass;
     VkDescriptorSetLayout descriptorSetLayout;
     VkPipelineLayout pipelineLayout;
-    VkPipeline graphicsPipeline;
     VkDescriptorPool descriptorPool;
     std::vector<VkDescriptorSet> descriptorSets;
 
@@ -160,13 +176,15 @@ private:
 
     VkCommandPool commandPool;
 
-    VkBuffer vertexBuffer;
-    VkDeviceMemory vertexBufferMemory;
-    VkBuffer indexBuffer;
-    VkDeviceMemory indexBufferMemory;
+    //VkBuffer vertexBuffer;
+    //VkDeviceMemory vertexBufferMemory;
+    //VkBuffer indexBuffer;
+    //VkDeviceMemory indexBufferMemory;
 
-    std::vector<VkBuffer> uniformBuffers;
-    std::vector<VkDeviceMemory> uniformBuffersMemory;
+    std::vector<VkBuffer> cameraUniformBuffers;
+    std::vector<VkBuffer> modelUniformBuffers;
+    std::vector<VkDeviceMemory> cameraUniformBuffersMemory;
+    std::vector<VkDeviceMemory> modelUniformBuffersMemory;
     std::vector<VkCommandBuffer> commandBuffers;
     std::vector<VkSemaphore> imageAvailableSemaphores;
     std::vector<VkSemaphore> renderFinishedSemaphores;
@@ -176,11 +194,15 @@ private:
 
     bool framebufferResized = false;
 
-    std::string TEXTURE_PATH = "./textures/mario_mime.png";
-    std::string MODEL_PATH = "./meshes/Mario.obj";
+    const char* TEXTURE_PATH = "./textures/mario_mime.png";
+    const char* F_MODEL_PATH = "./meshes/Skull.obj";
+    const char* S_MODEL_PATH = "./meshes/Sphere.obj";
 
-    std::string VERT_PATH = "shaders/multiPhong.vert.spv";
-    std::string FRAG_PATH = "shaders/multiPhong.frag.spv";
+    const char* MULTI_VERT_PATH = "shaders/multiPhong.vert.spv";
+    const char* MULTI_FRAG_PATH = "shaders/multiPhong.frag.spv";
+
+    const char* SIMPLE_VERT_PATH = "shaders/simplePhong.vert.spv";
+    const char* SIMPLE_FRAG_PATH = "shaders/simplePhong.frag.spv";
 
     bool hasStencilComponent(VkFormat format);
 
@@ -191,11 +213,12 @@ private:
     void createSwapChain();
     void createImageViews();
     void recreateSwapChain();
-    void updateUniformBuffer(uint32_t currentImage);
+    void updateCameraUniformBuffer(uint32_t currentImage);
+    void updateModelUniformBuffer(uint32_t currentImage);
     VkImageView createImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags);
     void createRenderPass();
     void createDescriptorSetLayout();
-    void createGraphicsPipeline(const std::string& vertFilePath_, const std::string& fragFilePath_);
+    void createGraphicsPipeline(const char* idName_, const std::string& vertFilePath_, const std::string& fragFilePath_);
     void createFramebuffers();
     void createCommandPool();
     void createDepthResources();
@@ -204,12 +227,13 @@ private:
     void createTextureSampler();
     void createImage(uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling,
         VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage& image, VkDeviceMemory& imageMemory);
-    void loadModel(const char* filename);
+    void loadModel(const char* idName_, const char* filename);
     void createVertexBuffer();
         /// A helper function for createVertexBuffer()
         uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties);
     void createIndexBuffer();
-    void createUniformBuffers();
+    void createCameraUniformBuffers();
+    void createModelUniformBuffers();
     void createDescriptorPool();
     void createDescriptorSets();
     void createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory);
@@ -266,14 +290,15 @@ private:
 
     static std::vector<char> readFile(const std::string& filename);
 
-    UniformBufferObject ubo;
-    inline Matrix4 getProjectionMatrix() const { return ubo.proj; }
-    inline Matrix4 getViewMatrix() const { return ubo.view; }
-    inline Matrix4 getModelMatrix() const { return ubo.model; }
+    CameraUniformBufferObject cameraUBO;
+    ModelUniformBufferObject modelUBO;
+    inline Matrix4 getProjectionMatrix() const { return cameraUBO.proj; }
+    inline Matrix4 getViewMatrix() const { return cameraUBO.view; }
+    inline Matrix4 getModelMatrix() const { return modelUBO.model; }
 
-    inline void setProjectionMatrix(Matrix4 projection_) { ubo.proj = projection_; }
-    inline void setViewMatrix(Matrix4 view_) { ubo.view = view_; }
-    inline void setModelMatrix(Matrix4 model_) { ubo.model = model_; }
+    inline void setProjectionMatrix(Matrix4 projection_) { cameraUBO.proj = projection_; }
+    inline void setViewMatrix(Matrix4 view_) { cameraUBO.view = view_; }
+    inline void setModelMatrix(Matrix4 model_) { modelUBO.model = model_; }
 
 };
 #endif 
